@@ -1,0 +1,66 @@
+{
+  "gateway": {
+    "port": 18789,
+    "host": "0.0.0.0",
+    "enableCors": true,
+    "corsOrigins": ["*"]
+  },
+  "providers": {
+    "ollama": {
+      "type": "openai-compatible",
+      "baseUrl": "http://ollama:11434/v1",
+      "apiKey": "ollama",
+      "enabled": true
+    },
+    "local": {
+      "type": "local-embedding",
+      "enabled": true
+    }
+  },
+  "agents": {
+    "defaults": {
+      "provider": "ollama",
+      "model": "mistral",
+      "temperature": 0.7,
+      "maxTokens": 2048,
+      "memorySearch": {
+        "enabled": true,
+        "provider": "local",
+        "vectorDimensions": 768
+      }
+    }
+  },
+  "integrations": {
+    "obsidian": {
+      "enabled": true,
+      "vaultPath": "/vaults/obsidian",
+      "allowRead": true,
+      "allowWrite": false,
+      "indexingInterval": 300000,
+      "fileExtensions": [".md"],
+      "ignorePatterns": [".obsidian", ".git", "node_modules"]
+    }
+  },
+  "memory": {
+    "type": "vector",
+    "provider": "local",
+    "persistenceDir": "/data/memory",
+    "chunkSize": 512,
+    "overlapSize": 64,
+    "autoIndex": true
+  },
+  "channels": {
+    "rest": {
+      "enabled": true,
+      "path": "/api"
+    }
+  },
+  "security": {
+    "requireAuth": false,
+    "apiKeys": ["openclaw-dev"]
+  },
+  "logging": {
+    "level": "info",
+    "format": "json"
+  }
+}
