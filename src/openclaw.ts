@@ -1,17 +1,25 @@
 import axios from 'axios';
+import { chatWithOllama } from './llm.js';
 
 const OPENCLAW_URL = process.env.OPENCLAW_URL || 'http://localhost:18789';
 
 export async function chatWithOpenClaw(message: string): Promise<string> {
   try {
-    const response = await axios.post(`${OPENCLAW_URL}/api/chat`, {
-      message,
-      sessionId: 'command-center',
-    });
+    const response = await axios.post(
+      `${OPENCLAW_URL}/api/chat`,
+      { message, sessionId: 'command-center' },
+      { timeout: 3000 }
+    );
     return response.data.response || response.data.message;
   } catch (error) {
-    console.error('OpenClaw chat error:', error);
-    return 'OpenClaw gateway unavailable. Using local LLM fallback.';
+    console.log('OpenClaw unavailable, falling back to Ollama...');
+    try {
+      const response = await chatWithOllama(message);
+      return response;
+    } catch (ollama_error) {
+      console.error('Ollama error:', ollama_error);
+      return 'Unable to generate response.';
+    }
   }
 }
 
@@ -19,6 +27,7 @@ export async function queryVault(query: string): Promise<Array<{ path: string; c
   try {
     const response = await axios.get(`${OPENCLAW_URL}/api/memory/search`, {
       params: { query, limit: 5 },
+      timeout: 3000,
     });
     return response.data.results || [];
   } catch (error) {
@@ -29,7 +38,7 @@ export async function queryVault(query: string): Promise<Array<{ path: string; c
 
 export async function indexVault(): Promise<boolean> {
   try {
-    await axios.post(`${OPENCLAW_URL}/api/memory/index`);
+    await axios.post(`${OPENCLAW_URL}/api/memory/index`, {}, { timeout: 3000 });
     return true;
   } catch (error) {
     console.error('Index error:', error);
@@ -39,7 +48,7 @@ export async function indexVault(): Promise<boolean> {
 
 export async function getVaultStatus(): Promise<{ indexed: boolean; fileCount: number; lastIndexed: number }> {
   try {
-    const response = await axios.get(`${OPENCLAW_URL}/api/memory/status`);
+    const response = await axios.get(`${OPENCLAW_URL}/api/memory/status`, { timeout: 3000 });
     return response.data;
   } catch (error) {
     return { indexed: false, fileCount: 0, lastIndexed: 0 };

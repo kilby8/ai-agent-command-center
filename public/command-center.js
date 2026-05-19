@@ -86,8 +86,8 @@ let missionStartTime = Date.now();
 let commsLog = [];
 let chatMessages = [];
 
-const API_URL = `http://${window.location.hostname}:3001`;
-const WS_URL = `ws://${window.location.hostname}:3001`;
+const API_URL = `http://${window.location.hostname}:${window.location.port || 3001}`;
+const WS_URL = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:${window.location.port || 3001}`;
 let ws = null;
 
 // Alert system

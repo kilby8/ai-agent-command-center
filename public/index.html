@@ -3,517 +3,413 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Command Center</title>
+    <title>AI Command Center Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: 'Courier New', monospace;
-            background: radial-gradient(ellipse at center, #0a0e27 0%, #050812 100%);
-            color: #00ff88;
-            overflow: hidden;
-            min-height: 100vh;
-            position: relative;
+        body { 
+            font-family: monospace; 
+            background: #000; 
+            color: #00ff88; 
+            overflow: hidden; 
+            height: 100vh;
         }
-
-        body::before {
-            content: '';
+        
+        #canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+        
+        .panel {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                linear-gradient(0deg, transparent 24%, rgba(0, 255, 136, 0.05) 25%, rgba(0, 255, 136, 0.05) 26%, transparent 27%, transparent 74%, rgba(0, 255, 136, 0.05) 75%, rgba(0, 255, 136, 0.05) 76%, transparent 77%, transparent),
-                linear-gradient(90deg, transparent 24%, rgba(0, 255, 136, 0.05) 25%, rgba(0, 255, 136, 0.05) 26%, transparent 27%, transparent 74%, rgba(0, 255, 136, 0.05) 75%, rgba(0, 255, 136, 0.05) 76%, transparent 77%, transparent);
-            background-size: 50px 50px;
-            pointer-events: none;
-            animation: gridMove 20s linear infinite;
-            z-index: 0;
-        }
-
-        @keyframes gridMove {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(50px, 50px); }
-        }
-
-        #canvas { display: block; position: relative; z-index: 1; }
-        
-        #ui {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        .hud-panel {
-            position: absolute;
-            background: linear-gradient(135deg, rgba(0, 20, 40, 0.95) 0%, rgba(0, 10, 20, 0.95) 100%);
-            border: 2px solid #00ff88;
-            border-radius: 4px;
+            background: rgba(0, 20, 40, 0.95);
+            border: 3px solid #00ff88;
             padding: 16px;
-            pointer-events: auto;
-            backdrop-filter: blur(5px);
-            box-shadow: 
-                0 0 20px rgba(0, 255, 136, 0.3),
-                inset 0 0 20px rgba(0, 255, 136, 0.05),
-                0 0 40px rgba(0, 0, 0, 0.8);
-            font-size: 11px;
-            color: #00ff88;
-            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .hud-panel h3 {
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid rgba(0, 255, 136, 0.3);
-            font-size: 12px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #a8edea;
-            text-shadow: 0 0 15px rgba(168, 237, 234, 0.8);
-            flex-shrink: 0;
-        }
-
-        .chat-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            margin-bottom: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .message {
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 11px;
-            line-height: 1.4;
-            word-wrap: break-word;
-            max-width: 90%;
-            animation: messageSlide 0.3s ease-out;
-        }
-
-        @keyframes messageSlide {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.user {
-            align-self: flex-end;
-            background: rgba(0, 255, 136, 0.15);
-            border-left: 2px solid #00ff88;
-        }
-
-        .message.assistant {
-            align-self: flex-start;
-            background: rgba(168, 237, 234, 0.1);
-            border-left: 2px solid #a8edea;
-        }
-
-        .message-timestamp {
-            font-size: 9px;
-            color: rgba(0, 255, 136, 0.5);
-            margin-top: 2px;
-        }
-
-        .chat-input-area {
-            display: flex;
-            gap: 6px;
-            flex-shrink: 0;
-        }
-
-        .chat-input {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(0, 255, 136, 0.5);
-            color: #00ff88;
-            padding: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            border-radius: 2px;
-            resize: none;
-            max-height: 60px;
-        }
-
-        .chat-input:focus {
-            outline: none;
-            border-color: #00ff88;
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-        }
-
-        .chat-send-btn {
-            background: rgba(0, 255, 136, 0.2);
-            border: 1px solid #00ff88;
-            color: #00ff88;
-            padding: 8px 12px;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-size: 10px;
-            text-transform: uppercase;
-            border-radius: 2px;
-            transition: all 0.2s;
-            white-space: nowrap;
-        }
-
-        .chat-send-btn:hover {
-            background: rgba(0, 255, 136, 0.4);
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
-        }
-
-        .chat-send-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #00ff88;
-            box-shadow: 0 0 10px #00ff88;
-            margin-right: 6px;
-            animation: pulse 1s ease-in-out infinite;
-        }
-
-        .status-indicator.alert {
-            background: #ff0055;
-            box-shadow: 0 0 15px #ff0055;
-            animation: alertPulse 0.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-
-        @keyframes alertPulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 15px #ff0055; }
-            50% { opacity: 0.3; box-shadow: 0 0 5px #ff0055; }
-        }
-
-        .tactical-map {
-            width: 250px;
-            height: 250px;
-            background: radial-gradient(circle, rgba(0, 50, 100, 0.8), rgba(0, 10, 30, 0.9));
-            border: 1px solid rgba(0, 255, 136, 0.5);
-            position: relative;
-            overflow: hidden;
-            margin-top: 8px;
-        }
-
-        .map-grid {
-            width: 100%;
-            height: 100%;
-            background-image: 
-                linear-gradient(rgba(0, 255, 136, 0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 255, 136, 0.1) 1px, transparent 1px);
-            background-size: 25px 25px;
-            position: relative;
-        }
-
-        .map-agent {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: #00ff88;
-            border: 1px solid #a8edea;
-            border-radius: 50%;
-            box-shadow: 0 0 5px currentColor;
-            transform: translate(-50%, -50%);
-        }
-
-        .map-resource {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: #ffd700;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 3px #ffd700;
-        }
-
-        .agent-log {
-            max-height: 180px;
-            overflow-y: auto;
-            font-size: 10px;
-            line-height: 1.4;
-        }
-
-        .log-entry {
-            padding: 4px;
-            margin: 2px 0;
-            border-left: 2px solid rgba(0, 255, 136, 0.3);
-            padding-left: 8px;
-            font-family: 'Courier New', monospace;
-        }
-
-        .log-entry.alert {
-            border-left-color: #ff0055;
-            color: #ff0055;
-            text-shadow: 0 0 5px #ff0055;
-        }
-
-        .log-entry.success {
-            color: #a8edea;
-        }
-
-        .stats-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 0;
-            border-bottom: 1px solid rgba(0, 255, 136, 0.1);
-        }
-
-        .stats-row:last-child {
-            border-bottom: none;
-        }
-
-        .stat-label {
-            color: rgba(0, 255, 136, 0.7);
-        }
-
-        .stat-value {
-            color: #a8edea;
-            font-weight: bold;
-        }
-
-        button {
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid #00ff88;
-            color: #00ff88;
-            padding: 6px 10px;
-            margin: 4px 4px 4px 0;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-size: 10px;
-            text-transform: uppercase;
-            transition: all 0.2s;
-            text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
-            border-radius: 2px;
-        }
-
-        button:hover {
-            background: rgba(0, 255, 136, 0.3);
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
-            text-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
-        }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-        #commandCenter {
-            top: 10px;
-            left: 10px;
-            width: 320px;
-            height: 220px;
-        }
-
-        #chatInterface {
-            top: 10px;
-            left: 340px;
-            width: 450px;
-            height: 380px;
-        }
-
-        #tacticalDisplay {
-            top: 10px;
-            right: 10px;
-            width: 280px;
-        }
-
-        #agentMonitor {
-            top: 310px;
-            right: 10px;
-            width: 280px;
-            max-height: 350px;
-        }
-
-        #commsLog {
-            bottom: 10px;
-            left: 10px;
-            width: 320px;
-            max-height: 280px;
-        }
-
-        #missionControl {
-            bottom: 10px;
-            right: 10px;
-            width: 300px;
-        }
-
-        .alert-banner {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 0, 85, 0.9);
-            border: 2px solid #ff0055;
-            color: #fff;
-            padding: 20px 40px;
-            border-radius: 4px;
-            font-size: 18px;
-            text-align: center;
-            z-index: 100;
-            display: none;
-            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            box-shadow: 0 0 30px rgba(255, 0, 85, 0.8);
-            animation: alertBounce 0.5s ease-out;
-        }
-
-        @keyframes alertBounce {
-            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
-            50% { transform: translate(-50%, -50%) scale(1.1); }
-            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        }
-
-        .scanline {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: repeating-linear-gradient(
-                0deg,
-                rgba(0, 0, 0, 0.15),
-                rgba(0, 0, 0, 0.15) 1px,
-                transparent 1px,
-                transparent 2px
-            );
-            pointer-events: none;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
             z-index: 50;
-            animation: scanlineMove 8s linear infinite;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: none;
         }
-
-        @keyframes scanlineMove {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(10px); }
+        
+        h2 { 
+            color: #a8edea; 
+            font-size: 13px; 
+            margin-bottom: 10px; 
+            border-bottom: 2px solid #00ff88; 
+            padding-bottom: 6px; 
+            flex-shrink: 0;
+            cursor: grab;
+            user-select: none;
         }
-
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 255, 136, 0.05);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(0, 255, 136, 0.3);
+        
+        h2:active { cursor: grabbing; }
+        
+        input, button { 
+            background: rgba(0, 0, 0, 0.7); 
+            border: 2px solid #00ff88; 
+            color: #00ff88; 
+            padding: 8px; 
+            margin: 4px 0;
+            font-family: monospace;
+            width: 100%;
+            cursor: pointer;
             border-radius: 3px;
+            font-size: 11px;
         }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(0, 255, 136, 0.5);
+        
+        input:focus { outline: none; box-shadow: 0 0 15px rgba(0, 255, 136, 0.8); }
+        button:hover { background: rgba(0, 255, 136, 0.2); }
+        
+        .agent-item {
+            padding: 10px;
+            margin: 4px 0;
+            background: rgba(0, 255, 136, 0.1);
+            border: 2px solid #00ff88;
+            cursor: pointer;
+            border-radius: 3px;
+            flex-shrink: 0;
+            transition: all 0.2s;
         }
+        
+        .agent-item:hover { background: rgba(0, 255, 136, 0.2); }
+        .agent-item.selected { background: rgba(0, 255, 136, 0.3); box-shadow: 0 0 15px rgba(0, 255, 136, 0.8); }
+        
+        .health-bar { width: 100%; height: 4px; background: rgba(0,0,0,0.3); border-radius: 2px; margin: 4px 0; overflow: hidden; }
+        .health-fill { height: 100%; background: #00ff88; width: 100%; transition: width 0.3s; }
+        
+        .stat-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 10px; border-bottom: 1px solid rgba(0, 255, 136, 0.1); }
+        
+        .comm-entry { padding: 3px; font-size: 9px; margin: 2px 0; border-left: 2px solid #a8edea; padding-left: 6px; }
+        
+        .message { padding: 6px; border-radius: 3px; font-size: 10px; margin: 2px 0; }
+        .message.user { align-self: flex-end; background: rgba(0, 255, 136, 0.15); max-width: 85%; }
+        .message.agent { align-self: flex-start; background: rgba(168, 237, 234, 0.1); max-width: 85%; }
+        
+        .close-btn { position: absolute; top: 8px; right: 8px; background: #ff0055; border: none; color: #fff; width: 22px; height: 22px; cursor: pointer; font-size: 12px; z-index: 60; }
+        
+        .resize-handle { position: absolute; bottom: 0; right: 0; width: 20px; height: 20px; cursor: nwse-resize; background: linear-gradient(135deg, transparent 50%, #00ff88 50%); }
+        
+        .scroll { flex: 1; overflow-y: auto; }
+        
+        /* Grid Layout */
+        #control { top: 10px; left: 10px; width: 250px; height: 380px; }
+        #monitor { top: 10px; left: 270px; width: 280px; height: 380px; }
+        #missions { top: 10px; right: 10px; width: 280px; height: 190px; }
+        #stats { top: 210px; right: 10px; width: 280px; height: 180px; }
+        #comms { bottom: 10px; left: 10px; width: 540px; height: 180px; }
+        #chat { bottom: 10px; right: 10px; width: 900px; height: 560px; display: none; }
+        #chat.active { display: flex; }
+        #profile { top: 400px; left: 10px; width: 540px; height: 180px; display: none; }
+        #profile.active { display: flex; }
+        
+        #chartContainer { height: 120px; margin-top: 8px; }
     </style>
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <div class="scanline"></div>
-    <div id="ui">
-        <div id="commandCenter" class="hud-panel">
-            <h3>⚡ COMMAND CENTER</h3>
-            <div class="stats-row">
-                <span class="stat-label">STATUS:</span>
-                <span><span class="status-indicator" id="systemStatus"></span>ONLINE</span>
-            </div>
-            <div class="stats-row">
-                <span class="stat-label">AGENTS:</span>
-                <span class="stat-value" id="agentCount">0</span>
-            </div>
-            <div class="stats-row">
-                <span class="stat-label">ENERGY:</span>
-                <span class="stat-value" id="arenaEnergy">0%</span>
-            </div>
-            <div class="stats-row">
-                <span class="stat-label">RESOURCES:</span>
-                <span class="stat-value" id="resourceCount">0</span>
-            </div>
-            
-            <div style="margin-top: 8px; border-top: 1px solid rgba(0, 255, 136, 0.3); padding-top: 8px; font-size: 10px;">
-                <input type="text" id="agentName" placeholder="AGENT NAME" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,136,0.3); color: #00ff88; padding: 4px; margin-bottom: 4px; font-size: 10px;">
-                <input type="text" id="agentGoal" placeholder="MISSION" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,136,0.3); color: #00ff88; padding: 4px; margin-bottom: 4px; font-size: 10px;">
-                <button onclick="spawnAgent()" style="width: 48%;">▶ DEPLOY</button>
-                <button onclick="toggleAutoThink()" style="width: 48%; margin-left: 4%;">⚙ AUTO</button>
-            </div>
+    
+    <!-- Control Panel -->
+    <div id="control" class="panel">
+        <h2>⚡ CONTROL</h2>
+        <div class="resize-handle"></div>
+        <div style="flex-shrink: 0; font-size: 10px;">
+            <div class="stat-row"><span>Agents:</span><span id="agentCount">0</span></div>
+            <div class="stat-row"><span>Energy:</span><span id="arenaEnergy">0%</span></div>
+            <div class="stat-row"><span>Resources:</span><span id="resourceCount">0</span></div>
         </div>
-
-        <div id="chatInterface" class="hud-panel">
-            <h3>💬 AI CHAT INTERFACE</h3>
-            <div class="chat-container">
-                <div class="chat-messages" id="chatMessages"></div>
-                <div class="chat-input-area">
-                    <input type="text" id="chatInput" class="chat-input" placeholder="Ask me anything..." onkeypress="handleChatKeypress(event)">
-                    <button class="chat-send-btn" onclick="sendChatMessage()">SEND</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="tacticalDisplay" class="hud-panel">
-            <h3>🎯 TACTICAL MAP</h3>
-            <div class="tactical-map">
-                <div class="map-grid" id="mapGrid"></div>
-            </div>
-            <div style="margin-top: 8px; font-size: 9px; color: rgba(0, 255, 136, 0.6);">
-                <span style="color: #00ff88;">●</span> Agents
-                <span style="color: #ffd700; margin-left: 8px;">●</span> Resources
-            </div>
-        </div>
-
-        <div id="agentMonitor" class="hud-panel">
-            <h3>👾 AGENT STATUS</h3>
-            <div id="agentList" class="agent-log">
-                <div class="log-entry">NO AGENTS DEPLOYED</div>
-            </div>
-        </div>
-
-        <div id="commsLog" class="hud-panel">
-            <h3>📡 COMMS LOG</h3>
-            <div id="commsLogContent" class="agent-log">
-                <div class="log-entry">[SYSTEM] Command center online.</div>
-            </div>
-        </div>
-
-        <div id="missionControl" class="hud-panel">
-            <h3>🎯 MISSION STATS</h3>
-            <div class="stats-row">
-                <span class="stat-label">TIME:</span>
-                <span class="stat-value" id="missionTime">00:00</span>
-            </div>
-            <div class="stats-row">
-                <span class="stat-label">COLLECTED:</span>
-                <span class="stat-value" id="totalCollected">0</span>
-            </div>
-            <div class="stats-row">
-                <span class="stat-label">EFFICIENCY:</span>
-                <span class="stat-value" id="efficiency">0%</span>
-            </div>
-        </div>
-
-        <div id="alertBanner" class="alert-banner"></div>
+        <label style="font-size: 10px; margin-top: 8px;">Agent Name:</label>
+        <input type="text" id="agentName" placeholder="Scout" style="margin: 0 0 4px 0;">
+        <label style="font-size: 10px;">Goal:</label>
+        <input type="text" id="agentGoal" placeholder="Explore" style="margin: 0 0 8px 0;">
+        <button onclick="spawnAgent()" style="margin: 0 0 4px 0; padding: 10px; font-weight: bold;">▶ DEPLOY</button>
+        <button onclick="toggleAutoThink()" style="margin: 0; padding: 10px; font-weight: bold;">⚙ AUTO-THINK</button>
+    </div>
+    
+    <!-- Agent Monitor -->
+    <div id="monitor" class="panel">
+        <h2>👾 AGENTS</h2>
+        <div class="resize-handle"></div>
+        <div id="agentList" class="scroll"></div>
+    </div>
+    
+    <!-- Mission Control -->
+    <div id="missions" class="panel">
+        <h2>🎯 MISSIONS</h2>
+        <div class="resize-handle"></div>
+        <div id="missionList" class="scroll"></div>
+        <button onclick="addMission()" style="margin-top: 4px; padding: 8px;">+ ADD</button>
+    </div>
+    
+    <!-- Statistics -->
+    <div id="stats" class="panel">
+        <h2>📊 STATS</h2>
+        <div class="resize-handle"></div>
+        <div id="chartContainer"></div>
+    </div>
+    
+    <!-- Agent Profile -->
+    <div id="profile" class="panel">
+        <button class="close-btn" onclick="closeProfile()">✕</button>
+        <h2 id="profileTitle">PROFILE</h2>
+        <div class="resize-handle"></div>
+        <div id="profileContent" class="scroll"></div>
+    </div>
+    
+    <!-- Comms Log -->
+    <div id="comms" class="panel">
+        <h2>📡 COMMS</h2>
+        <div class="resize-handle"></div>
+        <div id="commsList" class="scroll"></div>
+    </div>
+    
+    <!-- Agent Chat -->
+    <div id="chat" class="panel">
+        <button class="close-btn" onclick="closeChat()">✕</button>
+        <h2 id="chatTitle">💬 CHAT</h2>
+        <div class="resize-handle"></div>
+        <div id="chatMessages" class="scroll" style="flex: 1; display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px;"></div>
+        <input type="text" id="chatInput" placeholder="Command..." onkeypress="if(event.key==='Enter') sendCommand()" style="margin: 0 0 4px 0;">
+        <button onclick="sendCommand()" style="margin: 0; padding: 8px;">SEND</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="command-center.js"></script>
+    <script>
+        let draggedPanel = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        
+        document.querySelectorAll('.panel').forEach(panel => {
+            const header = panel.querySelector('h2');
+            const resizeHandle = panel.querySelector('.resize-handle');
+            
+            // Drag
+            header.addEventListener('mousedown', e => {
+                draggedPanel = panel;
+                dragOffsetX = e.clientX - panel.offsetLeft;
+                dragOffsetY = e.clientY - panel.offsetTop;
+                panel.style.zIndex = 100;
+            });
+            
+            // Resize
+            let resizing = false;
+            let startX, startY, startWidth, startHeight;
+            
+            resizeHandle.addEventListener('mousedown', e => {
+                resizing = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                startWidth = panel.offsetWidth;
+                startHeight = panel.offsetHeight;
+                panel.style.zIndex = 100;
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', e => {
+                if (resizing) {
+                    const newWidth = Math.max(200, startWidth + (e.clientX - startX));
+                    const newHeight = Math.max(150, startHeight + (e.clientY - startY));
+                    panel.style.width = newWidth + 'px';
+                    panel.style.height = newHeight + 'px';
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                resizing = false;
+                if (draggedPanel) draggedPanel.style.zIndex = 50;
+                draggedPanel = null;
+            });
+        });
+        
+        document.addEventListener('mousemove', e => {
+            if (draggedPanel) {
+                draggedPanel.style.left = (e.clientX - dragOffsetX) + 'px';
+                draggedPanel.style.top = (e.clientY - dragOffsetY) + 'px';
+            }
+        });
+        
+        const canvas = document.getElementById('canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x0a0e27);
+        camera.position.set(50, 80, 80);
+        
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const light = new THREE.DirectionalLight(0x00ff88, 0.8);
+        light.position.set(100, 100, 100);
+        scene.add(light);
+        
+        const arena = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x001a33 }));
+        arena.rotation.x = -Math.PI / 2;
+        scene.add(arena);
+        scene.add(new THREE.GridHelper(100, 20, 0x00ff88, 0x002255));
+        
+        let agents = new Map();
+        let autoThinking = false;
+        let selectedAgent = null;
+        let agentStats = {};
+        let chart = null;
+        const API_URL = `http://${window.location.hostname}:3001`;
+        const WS_URL = `ws://${window.location.hostname}:3001`;
+        
+        async function spawnAgent() {
+            const name = document.getElementById('agentName').value || 'Agent' + Math.floor(Math.random() * 1000);
+            const goal = document.getElementById('agentGoal').value || 'Explore';
+            try {
+                const res = await fetch(`${API_URL}/agents`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, goal }) });
+                const agent = await res.json();
+                agents.set(agent.id, agent);
+                agentStats[agent.id] = { energy: [100], resources: [0] };
+                addLog(`✓ "${name}" deployed`);
+                document.getElementById('agentName').value = '';
+                document.getElementById('agentGoal').value = '';
+            } catch (e) { addLog('✗ Spawn failed'); }
+        }
+        
+        function toggleAutoThink() {
+            autoThinking = !autoThinking;
+            if (autoThinking) { addLog('⚙ Auto-think ON'); thinkLoop(); }
+            else { addLog('⚙ Auto-think OFF'); }
+        }
+        
+        async function thinkLoop() {
+            while (autoThinking) {
+                for (const [id] of agents) {
+                    try { await fetch(`${API_URL}/agents/${id}/think`, { method: 'POST' }); } catch (e) {}
+                }
+                await new Promise(r => setTimeout(r, 2000));
+            }
+        }
+        
+        function selectAgent(id) {
+            selectedAgent = id;
+            const agent = agents.get(id);
+            document.querySelectorAll('.agent-item').forEach(el => el.classList.remove('selected'));
+            document.querySelector(`[data-agent-id="${id}"]`)?.classList.add('selected');
+            showProfile(agent);
+            document.getElementById('chat').classList.add('active');
+            document.getElementById('chatTitle').textContent = `💬 ${agent.name}`;
+            document.getElementById('chatMessages').innerHTML = '';
+        }
+        
+        function closeProfile() { document.getElementById('profile').classList.remove('active'); }
+        function closeChat() { selectedAgent = null; document.getElementById('chat').classList.remove('active'); }
+        
+        function showProfile(agent) {
+            document.getElementById('profile').classList.add('active');
+            document.getElementById('profileTitle').textContent = `📋 ${agent.name}`;
+            document.getElementById('profileContent').innerHTML = `
+                <div class="stat-row"><span>Energy:</span><span>${agent.energy.toFixed(1)}%</span></div>
+                <div class="stat-row"><span>Resources:</span><span>${agent.resourcesCollected}</span></div>
+                <div class="stat-row"><span>Pos:</span><span>${agent.position.x.toFixed(0)},${agent.position.z.toFixed(0)}</span></div>
+                <div class="stat-row"><span>Goal:</span><span>${agent.goal}</span></div>
+                <div class="stat-row"><span>Status:</span><span>${agent.thinking ? 'Thinking...' : 'Idle'}</span></div>
+            `;
+        }
+        
+        async function sendCommand() {
+            if (!selectedAgent) return;
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            input.value = '';
+            
+            addChatMessage(msg, 'user');
+            addChatMessage('⏳ Generating...', 'agent');
+            try {
+                const res = await fetch(`${API_URL}/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
+                if (res.ok) {
+                    const data = await res.json();
+                    document.querySelectorAll('#chatMessages .message.agent')[document.querySelectorAll('#chatMessages .message.agent').length - 1].textContent = data.content.substring(0, 500);
+                }
+            } catch (e) { document.querySelectorAll('#chatMessages .message.agent')[document.querySelectorAll('#chatMessages .message.agent').length - 1].textContent = 'Error'; }
+        }
+        
+        function addChatMessage(content, role) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.textContent = content;
+            document.getElementById('chatMessages').appendChild(div);
+            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+        }
+        
+        function addLog(msg) {
+            const list = document.getElementById('commsList');
+            const entry = document.createElement('div');
+            entry.className = 'comm-entry';
+            entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            list.appendChild(entry);
+            list.scrollTop = list.scrollHeight;
+            if (list.children.length > 50) list.removeChild(list.firstChild);
+        }
+        
+        function addMission() {
+            const goal = prompt('Mission goal?');
+            if (goal) addLog(`📍 Mission: ${goal}`);
+        }
+        
+        function connectWS() {
+            const ws = new WebSocket(WS_URL);
+            ws.onopen = () => addLog('✓ Connected');
+            ws.onmessage = (e) => { try { const msg = JSON.parse(e.data); if (msg.type === 'state') updateUI(msg.data); } catch (err) {} };
+            ws.onerror = () => addLog('✗ WS error');
+            ws.onclose = () => { addLog('⚠ Reconnecting...'); setTimeout(connectWS, 3000); };
+        }
+        
+        function updateUI(data) {
+            document.getElementById('agentCount').textContent = data.stats.totalAgents;
+            document.getElementById('arenaEnergy').textContent = data.stats.avgEnergy.toFixed(1) + '%';
+            document.getElementById('resourceCount').textContent = data.stats.resourcesInArena;
+            
+            const list = document.getElementById('agentList');
+            list.innerHTML = data.agents.length === 0 ? '<div style="color: rgba(0,255,136,0.5); font-size: 10px;">No agents</div>' :
+                data.agents.map(a => {
+                    if (!agentStats[a.id]) agentStats[a.id] = { energy: [a.energy], resources: [a.resourcesCollected] };
+                    else { agentStats[a.id].energy.push(a.energy); agentStats[a.id].resources.push(a.resourcesCollected); }
+                    if (agentStats[a.id].energy.length > 60) agentStats[a.id].energy.shift();
+                    if (agentStats[a.id].resources.length > 60) agentStats[a.id].resources.shift();
+                    
+                    return `<div class="agent-item" data-agent-id="${a.id}" onclick="selectAgent('${a.id}')">
+                        <strong style="font-size: 11px;">${a.name}</strong>
+                        <div class="health-bar"><div class="health-fill" style="width: ${a.energy}%"></div></div>
+                        <div style="font-size: 9px;">⚡${a.energy.toFixed(0)}% 💎${a.resourcesCollected} 📍${a.position.x.toFixed(0)},${a.position.z.toFixed(0)}</div>
+                    </div>`;
+                }).join('');
+            
+            if (selectedAgent) updateChart();
+        }
+        
+        function updateChart() {
+            if (!selectedAgent) return;
+            const stats = agentStats[selectedAgent];
+            if (!chart) {
+                const ctx = document.getElementById('chartContainer').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: Array(stats.energy.length).fill(''), datasets: [{ label: 'Energy %', data: stats.energy, borderColor: '#00ff88', fill: false, tension: 0.1, pointRadius: 2 }, { label: 'Resources', data: stats.resources, borderColor: '#ffd700', fill: false, tension: 0.1, pointRadius: 2 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { max: 100, ticks: { color: '#00ff88', font: { size: 9 } } } }, plugins: { legend: { labels: { color: '#00ff88', font: { size: 9 } } } } }
+                });
+            } else {
+                chart.data.datasets[0].data = stats.energy;
+                chart.data.datasets[1].data = stats.resources;
+                chart.update();
+            }
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = Date.now() * 0.00002;
+            camera.position.x = 50 + Math.sin(t) * 70;
+            camera.position.z = 50 + Math.cos(t) * 70;
+            camera.lookAt(50, 15, 50);
+            renderer.render(scene, camera);
+        }
+        
+        connectWS();
+        animate();
+        addLog('System ready');
+    </script>
 </body>
 </html>

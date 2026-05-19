@@ -2,7 +2,7 @@ import axios from 'axios';
 import { LLMResponse } from './types.js';
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
-const MODEL = process.env.MODEL || 'mistral';
+const MODEL = process.env.OLLAMA_MODEL || 'neural-chat';
 
 export async function generateAgentThought(
   agentName: string,
@@ -29,14 +29,33 @@ Keep it under 50 words.`;
       prompt,
       stream: false,
       temperature: 0.7,
-    });
+      top_p: 0.9,
+      top_k: 40,
+    }, { timeout: 15000 });
 
     return {
-      text: response.data.response,
+      text: response.data.response || 'Thinking...',
     };
   } catch (error) {
     console.error('LLM Error:', error);
     return { text: 'Waiting...' };
+  }
+}
+
+export async function chatWithOllama(message: string): Promise<string> {
+  try {
+    const response = await axios.post(`${OLLAMA_URL}/api/generate`, {
+      model: MODEL,
+      prompt: message,
+      stream: false,
+      temperature: 0.8,
+      top_p: 0.9,
+      top_k: 40,
+    }, { timeout: 20000 });
+    return response.data.response || 'No response generated.';
+  } catch (error) {
+    console.error('Ollama chat error:', error);
+    throw error;
   }
 }
 
